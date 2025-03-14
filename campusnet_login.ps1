@@ -16,7 +16,28 @@ if ($ssid -ne $SSID) {
 
 # Define the URL encoding function
 function UrlEncode([string]$str) {
-    return [System.Web.HttpUtility]::UrlEncode($str)
+    $firstEncode = ManualUrlEncode $str
+    $secondEncode = ManualUrlEncode $firstEncode
+    return $secondEncode
+}
+
+function ManualUrlEncode([string]$str) {
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($str)
+    $result = New-Object System.Text.StringBuilder
+    foreach ($byte in $bytes) {
+        if (($byte -ge 0x41 -and $byte -le 0x5A) -or  # A-Z
+            ($byte -ge 0x61 -and $byte -le 0x7A) -or  # a-z
+            ($byte -ge 0x30 -and $byte -le 0x39) -or  # 0-9
+            $byte -eq 0x2D -or  # -
+            $byte -eq 0x5F -or  # _
+            $byte -eq 0x2E -or  # .
+            $byte -eq 0x7E) {    # ~
+            $result.Append([char]$byte) | Out-Null
+        } else {
+            $result.AppendFormat("%{0:x2}", $byte) | Out-Null
+        }
+    }
+    return $result.ToString()
 }
 
 
@@ -52,8 +73,7 @@ if ($content -match "top\.self\.location\.href='http://172\.16\.128\.139/eportal
 }
 
 # URL encoding twice
-$encoded_qs_once = [System.Web.HttpUtility]::UrlEncode($query_string)
-$encoded_qs_twice = [System.Web.HttpUtility]::UrlEncode($encoded_qs_once)
+$encoded_qs_twice = UrlEncode($query_string)
 
 # Build POST data
 $post_data = @"
